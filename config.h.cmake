@@ -284,7 +284,7 @@
 #undef LT_OBJDIR
 
 /* Define to 1 if assertions should be disabled. */
-#undef NDEBUG
+//#undef NDEBUG
 
 /* Name of package */
 #undef PACKAGE

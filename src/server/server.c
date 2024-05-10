@@ -26,8 +26,10 @@
 #include <c_stl_lib.h>
 
 #ifndef SSR_MAX_CONN
-#define SSR_MAX_CONN 1024
+#define SSR_MAX_CONN 65535
 #endif
+
+#define SENDING_QUEUE_SIZE_RESUME_LINE (1024 * 32)
 
 struct ssr_server_state {
     struct server_env_t *env;

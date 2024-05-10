@@ -200,6 +200,7 @@ struct obfs_t * protocol_instance_create(const char *plugin_name) {
 
     if (protocol_obj) {
         protocol_obj->audit_incoming_user = &protocol_audit_incoming_user;
+		protocol_obj->enc_type = (uint8_t)protocol_type;
     }
     return protocol_obj;
 }
@@ -222,4 +223,10 @@ bool generic_server_udp_post_decrypt(struct obfs_t *obfs, struct buffer_t *buf, 
     (void)obfs; (void)buf;
     if (uid) { *uid = 0; }
     return true;
+}
+
+uint8_t obfs_env_enc_type(struct obfs_t *obfs) {
+	if (obfs)
+		return obfs->enc_type;
+	return 0;
 }

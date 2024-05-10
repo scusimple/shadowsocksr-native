@@ -598,6 +598,10 @@ static void tunnel_socket_ctx_on_read_cb(struct socket_ctx* socket, int status, 
             tunnel->tunnel_read_done(tunnel, socket);
         }
         socket->buf = NULL;
+		if ( tunnel->force_shutdown) {
+			//pr_debug("force_shudown tunnel.");
+			break;
+		}
 
         if (tunnel->tunnel_is_terminated(tunnel)) {
             tunnel_dump_error_info(tunnel, socket, "unexpect tunnel terminated.");

@@ -636,6 +636,15 @@ static void tunnel_write_done(struct tunnel_ctx *tunnel, struct socket_ctx *sock
     } else {
         tunnel->tunnel_dispatcher(tunnel, socket);
     }
+
+	struct socket_ctx * source_socket = (socket == tunnel->incoming) ? tunnel->outgoing : tunnel->incoming;
+	if (source_socket->is_read_paused &&  socket->handle.stream.write_queue_size < SENDING_QUEUE_SIZE_RESUME_LINE
+		&&  !tunnel->tunnel_is_terminated(tunnel)) {
+		//pr_info("tunnel [%p] source socket [%p], write socket [%p], write queue size [%lu]. RESUME read.",
+		//	(void*)tunnel, (void*)source_socket, (void*)socket, socket->handle.stream.write_queue_size);
+		source_socket->is_read_paused = false;
+		socket_ctx_read(source_socket, source_socket == tunnel->outgoing);
+	}
 }
 
 static size_t tunnel_get_alloc_size(struct tunnel_ctx *tunnel, struct socket_ctx *socket, size_t suggested_size) {
@@ -1305,6 +1314,11 @@ static void tunnel_server_streaming(struct tunnel_ctx* tunnel, struct socket_ctx
                 tunnel->tunnel_shutdown(tunnel);
             }
             free(buf);
+            if ( target_socket->handle.stream.write_queue_size > SENDING_QUEUE_SIZE_RESUME_LINE  &&
+                current_socket == tunnel->outgoing && !tunnel->tunnel_is_terminated(tunnel)) {
+                current_socket->is_read_paused = true;
+                uv_read_stop(&current_socket->handle.stream);
+            }
         }
     } else {
         ASSERT(false);

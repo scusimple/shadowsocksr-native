@@ -1359,12 +1359,15 @@ struct buffer_t * auth_aes128_sha1_server_pre_encrypt(struct obfs_t *obfs, const
     size_t pack_len;
     size_t unit_len = local->unit_len;
 
+	bool empty_buffer = true;
     while (buffer_get_length(buf2) > unit_len) {
         pack_len = auth_aes128_sha1_pack_data(buffer_get_data(buf2), unit_len, ogn_data_len, buffer, obfs);
         buffer += pack_len;
         buffer_shortened_to(buf2, unit_len, buffer_get_length(buf2) - unit_len, true);
+		empty_buffer = false;
     }
-    if (buffer_get_length(buf2) > 0) {
+	//empty buf2 also need to be pack
+	if (empty_buffer || buffer_get_length(buf2) > 0 ) {
         pack_len = auth_aes128_sha1_pack_data(buffer_get_data(buf2), buffer_get_length(buf2), ogn_data_len, buffer, obfs);
         buffer += pack_len;
     }

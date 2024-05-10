@@ -28,6 +28,7 @@ struct socket_ctx {
     enum socket_state wrstate;
     unsigned int idle_timeout;
     bool is_terminated;
+	bool is_read_paused;
 
     REF_COUNT_MEMBER;
 

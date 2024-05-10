@@ -26,8 +26,10 @@
 #include <c_stl_lib.h>
 
 #ifndef SSR_MAX_CONN
-#define SSR_MAX_CONN 1024
+#define SSR_MAX_CONN 65535
 #endif
+
+#define SENDING_QUEUE_SIZE_RESUME_LINE (1024 * 32)
 
 struct ssr_server_state {
     struct server_env_t *env;
@@ -369,7 +371,7 @@ void ssr_server_shutdown(struct ssr_server_state *state) {
     if (state->force_quit) {
         uv_timer_t *t = (uv_timer_t*) calloc(1, sizeof(*t));
         uv_timer_init(state->sigint_watcher->loop, t);
-        uv_timer_start(t, force_quit_timer_cb, 3000, 0); // wait 3 seconds.
+        uv_timer_start(t, force_quit_timer_cb, 10000, 0); // wait 3 seconds.
     }
 }
 
@@ -636,6 +638,15 @@ static void tunnel_write_done(struct tunnel_ctx *tunnel, struct socket_ctx *sock
     } else {
         tunnel->tunnel_dispatcher(tunnel, socket);
     }
+	// fix udp memory leak
+	struct socket_ctx * source_socket = (socket == tunnel->incoming) ? tunnel->outgoing : tunnel->incoming;
+	if (source_socket->is_read_paused &&  socket->handle.stream.write_queue_size < SENDING_QUEUE_SIZE_RESUME_LINE
+		&&  !tunnel->tunnel_is_terminated(tunnel)) {
+		//pr_info("tunnel [%p] source socket [%p], write socket [%p], write queue size [%lu]. RESUME read.",
+		//	(void*)tunnel, (void*)source_socket, (void*)socket, socket->handle.stream.write_queue_size);
+		source_socket->is_read_paused = false;
+		socket_ctx_read(source_socket, source_socket == tunnel->outgoing);
+	}
 }
 
 static size_t tunnel_get_alloc_size(struct tunnel_ctx *tunnel, struct socket_ctx *socket, size_t suggested_size) {
@@ -1305,6 +1316,12 @@ static void tunnel_server_streaming(struct tunnel_ctx* tunnel, struct socket_ctx
                 tunnel->tunnel_shutdown(tunnel);
             }
             free(buf);
+			// fix udp memory leak
+            if ( target_socket->handle.stream.write_queue_size > SENDING_QUEUE_SIZE_RESUME_LINE  &&
+                current_socket == tunnel->outgoing && !tunnel->tunnel_is_terminated(tunnel)) {
+                current_socket->is_read_paused = true;
+                uv_read_stop(&current_socket->handle.stream);
+            }
         }
     } else {
         ASSERT(false);

@@ -132,8 +132,9 @@ static void tls_cli_send_websocket_data(struct client_ctx* ctx, const uint8_t* b
 
 static bool can_auth_none(const struct tunnel_ctx* cx);
 static bool can_auth_passwd(const struct tunnel_ctx* cx);
+#if !defined(NDEBUG)
 static bool can_access(const struct tunnel_ctx* cx, const struct sockaddr* addr);
-
+#endif
 static bool tunnel_is_terminated(struct tunnel_ctx* tunnel);
 static void tunnel_shutdown(struct tunnel_ctx* tunnel);
 
@@ -826,6 +827,8 @@ static void do_connect_ssr_server(struct tunnel_ctx* tunnel) {
     ASSERT(outgoing->rdstate == socket_state_stop);
     ASSERT(outgoing->wrstate == socket_state_stop);
 
+
+#if !defined(NDEBUG)
     if (!can_access(tunnel, &outgoing->addr.addr)) {
         pr_warn("connection not allowed by ruleset");
         /* Send a 'Connection not allowed by ruleset' reply. */
@@ -833,6 +836,7 @@ static void do_connect_ssr_server(struct tunnel_ctx* tunnel) {
         ctx->stage = tunnel_stage_kill;
         return;
     }
+#endif
 
     uv_set_socket_create_cb((uv_handle_t*)&outgoing->handle.tcp, &_android_protect_socket, tunnel);
 
@@ -1523,6 +1527,7 @@ static bool can_auth_passwd(const struct tunnel_ctx* cx) {
     return false;
 }
 
+#if !defined(NDEBUG)
 static bool can_access(const struct tunnel_ctx* cx, const struct sockaddr* addr) {
     const struct sockaddr_in6* addr6;
     const struct sockaddr_in* addr4;
@@ -1561,6 +1566,7 @@ static bool can_access(const struct tunnel_ctx* cx, const struct sockaddr* addr)
 
     return false;
 }
+#endif
 
 static int deque_compare_e_ptr(const void* left, const void* right) {
     struct buffer_t* l = *((struct buffer_t**)left);

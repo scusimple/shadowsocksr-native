@@ -79,6 +79,7 @@ int ss_decrypt(struct cipher_env_t* env, struct buffer_t *ciphertext, struct enc
 
 struct cipher_env_t * cipher_env_new_instance(const char *pass, const char *method);
 enum ss_cipher_type cipher_env_enc_method(const struct cipher_env_t *env);
+uint8_t cipher_env_enc_password(const struct cipher_env_t *env);
 void cipher_env_release(struct cipher_env_t *env);
 
 const uint8_t * enc_ctx_get_iv(const struct enc_ctx *ctx);

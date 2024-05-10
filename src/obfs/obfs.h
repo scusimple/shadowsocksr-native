@@ -101,6 +101,8 @@ struct buffer_t * generic_server_post_decrypt(struct obfs_t *obfs, struct buffer
 bool generic_server_udp_pre_encrypt(struct obfs_t *obfs, struct buffer_t *buf, uint32_t uid);
 bool generic_server_udp_post_decrypt(struct obfs_t *obfs, struct buffer_t *buf, uint32_t *uid);
 
+uint8_t obfs_env_enc_type(struct obfs_t *obfs);
+
 #if (defined(_MSC_VER) && (_MSC_VER < 1800))
 #include <stdio.h>
 #if !defined(snprintf)

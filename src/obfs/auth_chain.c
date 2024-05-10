@@ -129,7 +129,7 @@ void i64_memcpy(uint8_t* target, uint8_t* source)
 }
 
 void shift128plus_init_from_bin(struct shift128plus_ctx *ctx, uint8_t *bin, int bin_size) {
-    uint8_t fill_bin[16] = {0};
+    uint8_t fill_bin[32] = {0};  //fix by scusimple 16->32
     memcpy(fill_bin, bin, bin_size);
     if (*(uint8_t*)(&g_endian_test) == 1) {
         memcpy(ctx, fill_bin, 16);
@@ -141,7 +141,7 @@ void shift128plus_init_from_bin(struct shift128plus_ctx *ctx, uint8_t *bin, int 
 
 void shift128plus_init_from_bin_datalen(struct shift128plus_ctx *ctx, const uint8_t* bin, int bin_size, int datalen) {
     int i = 0;
-    uint8_t fill_bin[16] = {0};
+    uint8_t fill_bin[32] = {0};   //fix by scusimple 16->32
     memcpy(fill_bin, bin, bin_size);
     fill_bin[0] = (uint8_t)datalen;
     fill_bin[1] = (uint8_t)(datalen >> 8);

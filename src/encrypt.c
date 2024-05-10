@@ -108,6 +108,7 @@ struct cipher_env_t {
     enum ss_cipher_type enc_method;
     struct cache *iv_cache;
     struct aead_cipher_t *aead_cipher;
+	uint8_t enc_password;
 };
 
 struct cipher_wrapper {
@@ -1340,11 +1341,16 @@ cipher_env_new_instance(const char *pass, const char *method)
         exit(EXIT_FAILURE);
     }
     env->enc_method = m;
+	env->enc_password = (uint8_t)pass[0];
     return env;
 }
 
 enum ss_cipher_type cipher_env_enc_method(const struct cipher_env_t *env) {
     return env->enc_method;
+}
+
+uint8_t cipher_env_enc_password(const struct cipher_env_t *env) {
+	return env->enc_password;
 }
 
 void

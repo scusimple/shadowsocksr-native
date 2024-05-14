@@ -247,7 +247,7 @@ static int ssr_server_run_loop(struct server_config *config, bool force_quit) {
     loop->data = state->env;
 
     {
-        char buff[256] = { 0 };
+        // char buff[256] = { 0 };
         union sockaddr_universal addr = { {0} };
         int error;
         uv_tcp_t *listener = (uv_tcp_t *) calloc(1, sizeof(uv_tcp_t));
@@ -922,7 +922,7 @@ static void do_parse(struct tunnel_ctx *tunnel, struct socket_ctx *socket) {
     if (socks5_address_parse(data, len, s5addr, &offset) == false) {
         // report_addr(server->fd, MALFORMED);
         pr_warn("tunnel [%p] pass socks5 address error. type %u, with token %d",
-                (void *)tunnel, data ? data[0] : 1000u, check_token);
+                (void *)tunnel, data ? data[0] : 1000u);
         tunnel->tunnel_shutdown(tunnel);
         return;
     }

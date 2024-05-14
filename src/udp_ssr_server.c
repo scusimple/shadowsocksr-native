@@ -141,15 +141,30 @@ static void server_udp_remote_timeout_cb(uv_timer_t* handle) {
 
 static void server_udp_request_incoming_cb(uv_udp_send_t* req, int status) {
     uv_udp_t *listener_udp = req->handle;
-    struct server_udp_remote_ctx *remote_ctx = (struct server_udp_remote_ctx*)req->data;
-    ASSERT(remote_ctx);
-    ASSERT(&remote_ctx->listener_ctx->udp == listener_udp);
+    
+    // 原实现对remote_ctx做了判断，但这里不应该对remote_ctx有任何访问
+    // remote_ctx的生命周期，和这个回调没有依赖关系，remote_ctx这时有可能已释放
 
-    buffer_release(remote_ctx->request_data);
-    remote_ctx->request_data = NULL;
+    // struct server_udp_remote_ctx *remote_ctx = (struct server_udp_remote_ctx*)req->data;
+    // ASSERT(remote_ctx);
+    // ASSERT(&remote_ctx->listener_ctx->udp == listener_udp);
 
-    free(req);
+    // buffer_release(remote_ctx->request_data);
+    // remote_ctx->request_data = NULL;
 
+    // free(req);
+
+    struct udp_incoming_send_ctx* req_ctx = (struct udp_incoming_send_ctx*) req;
+
+#ifdef __PRINT_CONNECT_INFO__
+    uint64_t cur_time = current_milliseconds();
+    if (cur_time - req_ctx->time > 5000) {
+        pr_err("udp send slow, current time [%llu], send time [%llu]", cur_time, req_ctx->time);
+    }
+#endif
+
+    buffer_release(req_ctx->buf);
+    free(req_ctx);
     (void)listener_udp;
     (void)status;
 }
@@ -171,7 +186,12 @@ void server_udp_remote_recv_cb(uv_udp_t* handle, ssize_t nread, const uv_buf_t* 
         listener_ctx = remote_ctx->listener_ctx;
 
         if (addr) {
-            ASSERT(memcmp(&remote_ctx->target_addr.addr, addr, sizeof(*addr)) == 0);
+            // pr_info("addres check: current from: %s, orign target: %s, ",
+            //     get_addr_str(addr, tmp1, sizeof(tmp1)),
+            //     get_addr_str(&remote_ctx->target_addr.addr, tmp2, sizeof(tmp2)));
+            
+            // 测试出现过发送方的ip、端口和目标ip端口不一致的情况，属于正常现象。
+            // ASSERT(memcmp(&remote_ctx->target_addr.addr, addr, sizeof(*addr)) == 0);
             (void)addr; (void)flags;
         }
 

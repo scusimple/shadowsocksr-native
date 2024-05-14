@@ -98,7 +98,7 @@ struct server_config * config_create(void) {
     return config;
 }
 
-struct server_config * config_clone(struct server_config* src) {
+struct server_config * config_clone(const struct server_config* src) {
     struct server_config *config = NULL;
     if (src == NULL) {
         return config;

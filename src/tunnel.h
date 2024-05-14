@@ -89,7 +89,8 @@ bool socket_ctx_is_terminated(struct socket_ctx* socket);
 bool socket_ctx_is_readable(struct socket_ctx* socket);
 bool socket_ctx_is_writeable(struct socket_ctx* socket);
 void socket_ctx_read(struct socket_ctx* socket, bool check_timeout);
-void socket_ctx_getaddrinfo(struct socket_ctx* socket, const char* hostname, uint16_t port);
+void socket_ctx_read_stop(struct socket_ctx* socket);
+int socket_ctx_getaddrinfo(struct socket_ctx* socket, const char* hostname, uint16_t port);
 void socket_ctx_write(struct socket_ctx* socket, const void* data, size_t len);
 
 struct tunnel_ctx {

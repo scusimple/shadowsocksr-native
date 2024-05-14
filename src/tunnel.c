@@ -208,6 +208,12 @@ void socket_ctx_read(struct socket_ctx* socket, bool check_timeout) {
     }
 }
 
+// 暂停从socket读入数据，
+void socket_ctx_read_stop(struct socket_ctx* socket) {
+    ASSERT(socket->rdstate == socket_state_stop);
+    uv_read_stop(&socket->handle.stream);
+}
+
 static void uv_socket_on_getaddrinfo_cb(uv_getaddrinfo_t* req, int status, struct addrinfo* ai) {
     struct socket_ctx* socket = CONTAINER_OF(req, struct socket_ctx, req.getaddrinfo);
     socket->result = status;
@@ -257,14 +263,17 @@ static void uv_socket_on_getaddrinfo_cb(uv_getaddrinfo_t* req, int status, struc
     uv_freeaddrinfo(ai);
 }
 
-void socket_ctx_getaddrinfo(struct socket_ctx* socket, const char* hostname, uint16_t port) {
+int socket_ctx_getaddrinfo(struct socket_ctx* socket, const char* hostname, uint16_t port) {
     uv_loop_t* loop = socket->handle.tcp.loop;
 
     socket->addr.addr4.sin_port = htons(port);
 
-    VERIFY(0 == uv_getaddrinfo(loop, &socket->req.getaddrinfo, uv_socket_on_getaddrinfo_cb, hostname, NULL, NULL));
-    socket_ctx_timer_start(socket);
-    socket->on_getaddrinfo_pending = true;
+    int ret = uv_getaddrinfo(loop, &socket->req.getaddrinfo, uv_socket_on_getaddrinfo_cb, hostname, NULL, NULL);
+    if (ret == 0) {
+        socket_ctx_timer_start(socket);
+        socket->on_getaddrinfo_pending = true;
+    }
+    return ret;
 }
 
 static void uv_socket_write_done_cb(uv_write_t* req, int status) {
@@ -402,9 +411,9 @@ void tunnel_destroy_internal(struct tunnel_ctx* tunnel) {
         tunnel->tunnel_destroying(tunnel);
     }
 
-#ifdef __PRINT_INFO__
-    pr_info("==== tunnel destroyed   count %3d ====", --tunnel_count);
-#endif // __PRINT_INFO__
+#ifdef __PRINT_CONNECT_INFO__
+    pr_info("==== tunnel [%p] destroyed   count %3d ====", (void*)tunnel, --tunnel_count);
+#endif
 
     socket_ctx_release(tunnel->incoming);
 

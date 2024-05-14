@@ -154,17 +154,6 @@ static void server_udp_request_incoming_cb(uv_udp_send_t* req, int status) {
 
     // free(req);
 
-    struct udp_incoming_send_ctx* req_ctx = (struct udp_incoming_send_ctx*) req;
-
-#ifdef __PRINT_CONNECT_INFO__
-    uint64_t cur_time = current_milliseconds();
-    if (cur_time - req_ctx->time > 5000) {
-        pr_err("udp send slow, current time [%llu], send time [%llu]", cur_time, req_ctx->time);
-    }
-#endif
-
-    buffer_release(req_ctx->buf);
-    free(req_ctx);
     (void)listener_udp;
     (void)status;
 }

@@ -1174,7 +1174,7 @@ static void tunnel_tls_do_launch_streaming(struct tunnel_ctx* tunnel) {
     ASSERT(incoming->wrstate == socket_state_stop);
 
     if (incoming->result < 0) {
-        char buff[256] = { 0 };
+        //char buff[256] = { 0 };
         PRINT_ERR("[TLS] write error: %s", uv_strerror_r((int)incoming->result, buff, sizeof(buff)));
         tunnel->tunnel_shutdown(tunnel);
     } else {
@@ -1248,7 +1248,7 @@ static void tls_cli_on_connection_established(struct tls_cli_ctx* tls_cli, int s
     struct socket_ctx* incoming = tunnel->incoming;
     struct socket_ctx* outgoing = tunnel->outgoing;
     struct server_config* config = ctx->env->config;
-
+    (void)tls_cli;
     ctx->connection_status = status;
 
     if (status < 0) {

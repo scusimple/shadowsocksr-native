@@ -929,7 +929,7 @@ static void do_parse(struct tunnel_ctx *tunnel, struct socket_ctx *socket) {
 
     // ASSERT(offset == socks5_address_size(s5addr));
     if (offset != socks5_address_size(s5addr)) {
-        pr_warn("tunnel [%p] socks5 address parse result check error. type %d, size %lu, offset %lu, with token %d",
+        pr_warn("tunnel [%p] socks5 address parse result check error. type %d, size %lu, offset %lu",
                 (void *)tunnel, s5addr->addr_type, socks5_address_size(s5addr), offset);
         tunnel->tunnel_shutdown(tunnel);
         return;

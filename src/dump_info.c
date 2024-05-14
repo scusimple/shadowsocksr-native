@@ -68,9 +68,9 @@ void localtime_now(char *now_str, size_t size) {
     gtime = localtime(&now); /* Convert the system time to local time */
 
     /* get the time in local time */
-    sprintf(now_str, "%04d/%02d/%02d %02d:%02d",
+    sprintf(now_str, "%04d/%02d/%02d %02d:%02d:%02d",
         (uint16_t)(gtime->tm_year + 1900), (uint8_t)(gtime->tm_mon + 1), (uint8_t)gtime->tm_mday,
-        (uint8_t)(gtime->tm_hour % 24), (uint8_t)gtime->tm_min);
+        (uint8_t)(gtime->tm_hour % 24), (uint8_t)gtime->tm_min, (uint8_t)gtime->tm_sec);
 }
 
 #define DUMP_LEVEL_MAP(V)                                   \
@@ -114,7 +114,7 @@ static void pr_do(FILE *stream, dump_level level, const char *fmt, va_list ap) {
     char *p;
     const char *label = NULL;
     enum text_color color = text_color_white;
-    char date_time[24] = { 0 };
+    char date_time[32] = { 0 };
 
     localtime_now(date_time, sizeof(date_time));
     vsnprintf(fmtbuf, size, fmt, ap);

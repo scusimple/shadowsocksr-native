@@ -29,6 +29,7 @@
 #define SSR_MAX_CONN 65535
 #endif
 
+#define SENDING_QUEUE_SIZE_STOP_LINE (1024 * 256)
 #define SENDING_QUEUE_SIZE_RESUME_LINE (1024 * 32)
 
 struct ssr_server_state {
@@ -494,16 +495,18 @@ static void tunnel_dispatcher(struct tunnel_ctx* tunnel, struct socket_ctx* sock
     struct socket_ctx *incoming = tunnel->incoming;
     const char *info = tunnel_stage_string(ctx->stage); (void)info;
     (void)done;
-#if defined(__PRINT_INFO__)
+
+#if defined(__PRINT_CONNECT_INFO__)
     if (tunnel_is_in_streaming(tunnel)) {
         if (tunnel->in_streaming == false) {
             tunnel->in_streaming = true;
-            pr_info("%s ...", info);
+            pr_info("tunnel [%p]: %s ...", (void*)tunnel, info);
         }
     } else {
-        pr_info("%s", info);
+        pr_info("tunnel [%p]: %s", (void*)tunnel, info);
     }
 #endif
+    
     strncpy(tunnel->extra_info, info, 0x100 - 1);
     switch (ctx->stage) {
     case tunnel_stage_initial:
@@ -638,15 +641,17 @@ static void tunnel_write_done(struct tunnel_ctx *tunnel, struct socket_ctx *sock
     } else {
         tunnel->tunnel_dispatcher(tunnel, socket);
     }
-	// fix udp memory leak
-	struct socket_ctx * source_socket = (socket == tunnel->incoming) ? tunnel->outgoing : tunnel->incoming;
-	if (source_socket->is_read_paused &&  socket->handle.stream.write_queue_size < SENDING_QUEUE_SIZE_RESUME_LINE
-		&&  !tunnel->tunnel_is_terminated(tunnel)) {
-		//pr_info("tunnel [%p] source socket [%p], write socket [%p], write queue size [%lu]. RESUME read.",
-		//	(void*)tunnel, (void*)source_socket, (void*)socket, socket->handle.stream.write_queue_size);
-		source_socket->is_read_paused = false;
-		socket_ctx_read(source_socket, source_socket == tunnel->outgoing);
-	}
+
+    struct socket_ctx * source_socket = ((socket == tunnel->incoming) ? tunnel->outgoing : tunnel->incoming);
+    if (source_socket->is_read_paused && socket->handle.stream.write_queue_size < SENDING_QUEUE_SIZE_RESUME_LINE 
+            && !tunnel->tunnel_is_terminated(tunnel)) {
+
+        pr_info("tunnel [%p] source socket [%p], write socket [%p], write queue size [%lu]. RESUME read.", 
+                (void*)tunnel, (void*)source_socket, (void*)socket, socket->handle.stream.write_queue_size);
+
+        source_socket->is_read_paused = false;
+        socket_ctx_read(source_socket, source_socket == tunnel->outgoing);
+    }
 }
 
 static size_t tunnel_get_alloc_size(struct tunnel_ctx *tunnel, struct socket_ctx *socket, size_t suggested_size) {
@@ -916,11 +921,20 @@ static void do_parse(struct tunnel_ctx *tunnel, struct socket_ctx *socket) {
     memset(s5addr, 0, sizeof(*s5addr));
     if (socks5_address_parse(data, len, s5addr, &offset) == false) {
         // report_addr(server->fd, MALFORMED);
+        pr_warn("tunnel [%p] pass socks5 address error. type %u, with token %d",
+                (void *)tunnel, data ? data[0] : 1000u, check_token);
         tunnel->tunnel_shutdown(tunnel);
         return;
     }
 
-    ASSERT(offset == socks5_address_size(s5addr));
+    // ASSERT(offset == socks5_address_size(s5addr));
+    if (offset != socks5_address_size(s5addr)) {
+        pr_warn("tunnel [%p] socks5 address parse result check error. type %d, size %lu, offset %lu, with token %d",
+                (void *)tunnel, s5addr->addr_type, socks5_address_size(s5addr), offset, check_token);
+        tunnel->tunnel_shutdown(tunnel);
+        return;
+    }
+
     buffer_shortened_to(target_address_pkg, offset, len - offset, true);
 
     host = socks5_address_to_string(s5addr, &malloc, false);
@@ -938,7 +952,12 @@ static void do_parse(struct tunnel_ctx *tunnel, struct socket_ctx *socket) {
 
     if (ipFound == false) {
         ctx->stage = tunnel_stage_resolve_host;
-        socket_ctx_getaddrinfo(outgoing, host, s5addr->port);
+        int ret = socket_ctx_getaddrinfo(outgoing, host, s5addr->port);
+        if (ret != 0) {
+            pr_warn("tunnel [%p] getaddrinfo error. ret code %d, hostname: %s", 
+                    (void *)tunnel, ret, (host != NULL) ? host : "null");
+            tunnel->tunnel_shutdown(tunnel);
+        }
     } else {
         outgoing->addr = target;
         do_connect_host_start(tunnel, outgoing);
@@ -1001,7 +1020,7 @@ static void do_connect_host_start(struct tunnel_ctx *tunnel, struct socket_ctx *
         char buff[256] = { 0 };
         u_short sa_family = socket->addr.addr.sa_family;
         char* sf = (sa_family == AF_INET) ? "IPv4" : ((sa_family == AF_INET6) ? "IPv6" : "unknown");
-        pr_err("connect \"%s\" (%s) error: %s", addr, sf, uv_strerror_r(err, buff, sizeof(buff)));
+        pr_warn("tunnel [%p] connect \"%s\" (%s) error: %s", (void*)tunnel, addr, sf, uv_strerror_r(err, buff, sizeof(buff)));
 
         {
             char* host = socks5_address_to_string(tunnel->desired_addr, &malloc, false);
@@ -1015,7 +1034,7 @@ static void do_connect_host_start(struct tunnel_ctx *tunnel, struct socket_ctx *
         tunnel->tunnel_shutdown(tunnel);
     } else {
 #if defined(__PRINT_INFO__)
-        pr_info("connecting \"%s\" ...", addr);
+        pr_info("tunnel [%p] connecting \"%s\" ...", (void*)tunnel, addr);
 #endif
     }
     free(addr);
@@ -1069,6 +1088,17 @@ static void do_launch_streaming(struct tunnel_ctx *tunnel, struct socket_ctx *so
 
     incoming = tunnel->incoming;
     outgoing = tunnel->outgoing;
+
+#ifdef __PRINT_CONNECT_INFO__
+    {
+        union sockaddr_universal tmp = { { 0 } };
+        int len = sizeof(tmp);
+        uv_tcp_getpeername(&socket->handle.tcp, &tmp.addr, &len);
+        char *addr = universal_address_to_string(&tmp, &malloc, true);
+        pr_info("tunnel [%p] launch streaming, addr [%s]", (void*)tunnel, addr);
+        free(addr);
+    }
+#endif
 
     ASSERT(outgoing == socket);
     ASSERT(incoming->rdstate == socket_state_stop);
@@ -1311,16 +1341,21 @@ static void tunnel_server_streaming(struct tunnel_ctx* tunnel, struct socket_ctx
             ASSERT(tunnel->tunnel_extract_data);
             buf = tunnel->tunnel_extract_data(tunnel, current_socket, &malloc, &len);
             if (buf /* && len > 0 */) {
-                tunnel_socket_ctx_write(tunnel, target_socket, buf, len);
-            } else {
-                tunnel->tunnel_shutdown(tunnel);
-            }
-            free(buf);
-			// fix udp memory leak
-            if ( target_socket->handle.stream.write_queue_size > SENDING_QUEUE_SIZE_RESUME_LINE  &&
-                current_socket == tunnel->outgoing && !tunnel->tunnel_is_terminated(tunnel)) {
-                current_socket->is_read_paused = true;
-                uv_read_stop(&current_socket->handle.stream);
+            tunnel_socket_ctx_write(tunnel, target_socket, buf, len);
+        } else {
+            tunnel->tunnel_shutdown(tunnel);
+        }
+        free(buf);
+        
+        // 如果目标socket待发送数据过多，先暂停数据读取，防止占用过多服务器内存
+        // 此逻辑先只用于下载数据的情形，上传数据也可考虑使用。
+        if (target_socket->handle.stream.write_queue_size > SENDING_QUEUE_SIZE_STOP_LINE 
+                    && current_socket == tunnel->outgoing && !tunnel->tunnel_is_terminated(tunnel)) {
+            pr_info("tunnel [%p] current socket [%p], traget socket [%p], write queue size %lu. STOP read!", 
+                    (void*)tunnel, (void*)current_socket, (void*)target_socket, target_socket->handle.stream.write_queue_size);
+            
+            current_socket->is_read_paused = true;
+            socket_ctx_read_stop(current_socket);
             }
         }
     } else {

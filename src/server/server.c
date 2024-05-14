@@ -921,7 +921,7 @@ static void do_parse(struct tunnel_ctx *tunnel, struct socket_ctx *socket) {
     memset(s5addr, 0, sizeof(*s5addr));
     if (socks5_address_parse(data, len, s5addr, &offset) == false) {
         // report_addr(server->fd, MALFORMED);
-        pr_warn("tunnel [%p] pass socks5 address error. type %u, with token %d",
+        pr_warn("tunnel [%p] pass socks5 address error. type %u",
                 (void *)tunnel, data ? data[0] : 1000u);
         tunnel->tunnel_shutdown(tunnel);
         return;
@@ -930,7 +930,7 @@ static void do_parse(struct tunnel_ctx *tunnel, struct socket_ctx *socket) {
     // ASSERT(offset == socks5_address_size(s5addr));
     if (offset != socks5_address_size(s5addr)) {
         pr_warn("tunnel [%p] socks5 address parse result check error. type %d, size %lu, offset %lu, with token %d",
-                (void *)tunnel, s5addr->addr_type, socks5_address_size(s5addr), offset, check_token);
+                (void *)tunnel, s5addr->addr_type, socks5_address_size(s5addr), offset);
         tunnel->tunnel_shutdown(tunnel);
         return;
     }
